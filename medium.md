@@ -1,4 +1,4 @@
-# 我對 LINE Bot 說「收藏第二間」：用 Gemini Function Calling，讓 Cafe Bot 從會推薦變成會做事
+# 我和 Codex 讓 LINE Cafe Bot 真的會做事：從「收藏第二間」開始的 Gemini Function Calling 實作
 
 前一版的 Cafe Bot，已經可以做到一件很實用的事：
 
@@ -20,6 +20,14 @@
 
 這就是這次 `line-cafe-action-agent` 的起點。
 
+不過，我一開始其實沒有直接決定要做收藏功能。我先請 Codex 盤點目前 Cafe Bot 已經完成的能力，再推薦五個還沒做過、又適合 Gemini API 的方向。
+
+其中一個提案是「Function Calling 行動助理」：讓使用者用自然語言收藏店家、建立行程、管理清單。看到這個方向時，我第一個反應就是：「這個滿有趣的，我想做。」
+
+接著 Codex 幫我取了新的 repo 名稱 `line-cafe-action-agent`。我建立好空 repo 後，它再從現有的 Maps Grounding 與 Postback 專案裡盤點可以沿用的架構，從零開始把新版做起來。
+
+這次 Codex 不只是幫我寫幾段 Function Calling 範例，而是一路參與了功能範圍、資料設計、測試、GitHub、Cloud Run 部署與 LINE Webhook 切換。
+
 ---
 
 ## 從回答問題，到真的採取行動
@@ -33,6 +41,8 @@
 問題是，它可能只是在「說」自己完成了，資料庫裡根本什麼都沒有。
 
 這次使用的 Gemini Function Calling，解決的就是這個落差。
+
+確定方向後，Codex 先沒有急著把所有功能塞進同一個 handler，而是把 Gemini 意圖判斷、Firestore 資料存取、LINE 訊息和 Postback 確認拆成不同模組。這讓模型的工作與真正執行操作的程式邏輯保持分離。
 
 我先告訴 Gemini，目前有哪些工具可以使用：
 
@@ -112,6 +122,8 @@ Function Calling 可以判斷 `cafe_number: 2`，但後端還有一個更基本�
 收藏店家看起來不是什麼危險操作，但只要開始做 Function Calling，就很容易繼續加上刪除、預約、建立行程，甚至未來可能出現付費功能。
 
 所以這一版從一開始就沒有設計成「模型說做就做」。
+
+我和 Codex 討論後，把「執行前確認」定成第一版就必須存在的規則，而不是等功能做大之後再補。因為今天只是收藏，明天很可能就會變成預約、通知，甚至其他更敏感的操作。
 
 當 Gemini 判斷出工具之後，後端會先建立一筆有效 10 分鐘的 pending action，再回傳兩顆 LINE 按鈕：
 
@@ -193,7 +205,11 @@ Function Calling 讓 Bot 更有能力；確認機制則確保能力不會變成�
 
 結果 LINE 跳出來的，卻還是舊 Bot 的「傳送目前位置」。
 
-第一眼很容易懷疑是不是 Function Calling 沒有成功，或 Firestore 沒讀到推薦紀錄。但比對新版程式後，很快發現這段回覆根本不是新版本會說的話。
+第一眼很容易懷疑是不是 Function Calling 沒有成功，或 Firestore 沒讀到推薦紀錄。
+
+我把現象告訴 Codex 後，它沒有立刻修改 prompt，而是先拿實際回覆和新版程式比對。新版在找不到推薦紀錄時，應該回答「找不到這間推薦，請重新傳送位置」，不會直接跳出舊版的歡迎訊息。
+
+有了這個證據，Codex 接著查詢 Cloud Run 的服務清單，才發現 `line-cafe-action-agent` 根本還沒出現在已部署服務裡。也就是說，問題不在 Gemini，而在部署鏈路。
 
 真正的原因很單純：
 
@@ -223,7 +239,7 @@ GitHub repo
 line-cafe-action-agent
 ```
 
-部署前，我先檢查既有 Cafe Bot 使用的 runtime service account，確認它已經具備：
+部署前，Codex 先檢查既有 Cafe Bot 使用的 runtime service account，確認它已經具備：
 
 - Vertex AI 權限
 - Firestore 權限
@@ -231,7 +247,7 @@ line-cafe-action-agent
 
 也確認專案裡的 Firestore 是 Native mode，而且位置和 Cloud Run 一致。
 
-新服務部署後，先做 `/health`，確認新的 revision 已經 Ready，再讀取 LINE 目前真正使用中的舊 Webhook endpoint。
+新服務部署後，Codex 先測 `/health`，確認新的 revision 已經 Ready，再透過 LINE API 讀取目前真正使用中的舊 Webhook endpoint。
 
 最後才執行切換：
 
@@ -255,6 +271,8 @@ line-cafe-action-agent
 ```
 
 Cloud Logging 也沒有出現 error，新 Webhook 才正式保留下來。
+
+這段過程也讓我很明顯感受到 Codex 和單純貼程式碼給我的差別。它不只完成 repo 裡的程式，還能沿著 Cloud Run、IAM、Firestore、LINE API 和 logs 一層一層確認，直到手機真正連上新版本。
 
 我在前一次 Postback 專案裡學到「發布前先想好怎麼回去」，這次就直接把同一個原則用在新的 Action Agent 上。
 
@@ -289,11 +307,14 @@ Cloud Logging 也沒有出現 error，新 Webhook 才正式保留下來。
 
 回頭看，這次表面上只是替 Cafe Bot 加了收藏與行事曆。
 
+對我來說，另一個很重要的收穫，是更清楚怎麼和 Codex 合作完成這類跨服務功能。我負責說明想解決的生活情境、選擇自己真正有興趣的方向；Codex 則把需求拆成可以實作和驗證的系統，遇到問題時再用實際程式與雲端狀態找原因。
+
 但整個專案真正跨出去的一步，是讓 Bot 從「提供資訊」進入「執行操作」。
 
 而這一步不能只靠模型變聰明，還需要把幾個角色分清楚：
 
 - Gemini 負責理解自然語言與選擇工具
+- Codex 負責協助我設計、實作、測試與部署整套流程
 - Firestore 負責保存上下文、收藏與待確認操作
 - 後端負責驗證參數與控制權限
 - LINE Postback 負責取得使用者最後確認
@@ -316,4 +337,3 @@ https://github.com/zonawang/line-cafe-action-agent
 
 更多 LINE Bot 與 AI 實作紀錄：
 https://github.com/zonawang/zona-ai-learning-lab
-
