@@ -30,6 +30,24 @@
 
 ---
 
+## 這次和以前不太一樣：我終於把 Gemini API 放在主角位置
+
+回頭看前幾次的 LINE Bot 實作，我碰過很多不同功能：Message Action、Location Action、Postback、Quick Reply、Flex Message、Loading Animation、相機和日期選擇器。
+
+這些功能雖然也會搭配 AI，但每次學習的主角，大多還是 LINE Messaging API。我通常是在研究「LINE 的這顆按鈕怎麼觸發」、「Webhook 會收到什麼 event」，或「怎麼把結果排成使用者看得懂的訊息」。
+
+Gemini 比較像躲在後面的智慧大腦，負責分析或生成內容。
+
+這次我想反過來試一次：LINE 仍然是互動介面，但真正想學的新東西，是 Gemini API 的 Function Calling。
+
+我不只把一句話送給模型，再拿回一段文字，而是正式替模型定義可以使用的工具、參數格式與使用時機，觀察它怎麼把「收藏第二間」這種自然語言，轉成後端能執行的結構化指令。
+
+技術上，這個專案使用 `@google/genai` SDK，透過 Vertex AI 呼叫 Gemini，並在請求裡提供 `functionDeclarations`。所以雖然使用者最後還是在 LINE 裡按按鈕、傳訊息，這次真正推動功能決策的核心，已經從 LINE Action 往 Gemini API 前進了一步。
+
+這也是我會想特別記錄這個專案的原因。它不只是又學會一種 LINE Message，而是我第一次刻意把 Gemini API 的能力拆開來理解，再把它接回已經熟悉的 LINE Bot 場景。
+
+---
+
 ## 從回答問題，到真的採取行動
 
 一般的聊天機器人很會回答，但回答完通常就結束了。
